@@ -30,6 +30,7 @@ namespace Predator
         private bool _exiting;
 
         private Label _cpuTemp = null!, _gpuTemp = null!, _cpuInfo = null!, _gpuInfo = null!, _summary = null!;
+        private TempChart _chart = null!;
         private PredatorButton _btnSmart = null!, _btnCurve = null!;
         private readonly List<(PredatorButton Btn, PowerMode Mode)> _modeBtns = new();
         private readonly List<(PredatorButton Btn, FanMode Mode)> _fanBtns = new();
@@ -91,8 +92,9 @@ namespace Predator
 
             // Live stats
             int half = inner / 2;
-            AddLabel("CPU", pad, y, FontHeader, Dim);
-            AddLabel("GPU", pad + half, y, FontHeader, Dim);
+            // Header colours double as the chart legend.
+            AddLabel("CPU", pad, y, FontHeader, Accent);
+            AddLabel("GPU", pad + half, y, FontHeader, Color.FromArgb(120, 150, 255));
             y += S(18);
             _cpuTemp = AddLabel("--°C", pad, y, FontBig, Color.White);
             _gpuTemp = AddLabel("--°C", pad + half, y, FontBig, Color.White);
@@ -103,7 +105,10 @@ namespace Predator
             _summary = AddLabel("", pad, y, FontBody, Accent);
             _summary.AutoSize = false;
             _summary.Size = new Size(inner, S(20));
-            y += S(32);
+            y += S(26);
+            _chart = new TempChart { Location = new Point(pad, y), Size = new Size(inner, S(72)), Limit = _c.Settings.CpuTempLimit };
+            Controls.Add(_chart);
+            y += S(72) + S(20);
 
             // Mode
             AddLabel("MODE", pad, y, FontHeader, Dim);
@@ -223,7 +228,7 @@ namespace Predator
             {
                 _effect.SelectedIndex = Array.IndexOf(Effects, s.Light);
                 _brightness.Value = s.LightBrightness;
-                _btnColor.CustomActiveColor = s.LightColor;
+                _btnColor.CustomActiveColor = Readable(s.LightColor);
                 _btnColor.IsActive = s.Light is LightEffect.Static or LightEffect.Breathing;
             }
 
@@ -232,6 +237,15 @@ namespace Predator
 
             _traySmart.Checked = s.Smart;
             foreach (var (item, m) in _trayModes) item.Checked = !s.Smart && s.Power == m;
+        }
+
+        // Show the keyboard colour on the button text, lifted towards white until it reads on the dark button.
+        private static Color Readable(Color c)
+        {
+            double Lum(Color x) => 0.2126 * x.R + 0.7152 * x.G + 0.0722 * x.B;
+            for (int i = 0; i < 10 && Lum(c) < 120; i++)
+                c = Color.FromArgb(c.R + (255 - c.R) / 4, c.G + (255 - c.G) / 4, c.B + (255 - c.B) / 4);
+            return c;
         }
 
         private void OnStatus()
@@ -244,6 +258,7 @@ namespace Predator
             _cpuInfo.Text = $"{st.CpuLoad:0}% load · {st.CpuFanRpm} rpm";
             _gpuInfo.Text = $"{st.GpuLoad:0}% load · {st.GpuFanRpm} rpm";
             _summary.Text = st.Summary + (st.OnAc ? "" : " · on battery");
+            _chart.Add(st.CpuTemp, st.GpuTemp);
 
             string tip = $"CPU {st.CpuTemp}°C · GPU {st.GpuTemp}°C\n{SmartGovernor.Label(st.Power)}";
             _tray.Text = tip.Length > 63 ? tip[..63] : tip;
