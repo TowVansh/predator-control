@@ -68,12 +68,14 @@ namespace Predator
             Smooth(t);
             UpdateWorkload(Classify(t));
             UpdateThermal(t);
+            TickLightCooldown();
 
             // Low battery: stretch what's left, whatever the workload.
             bool saver = !t.OnAc && t.BatteryPercent < LowBatteryPercent;
             var r = Ladder[saver ? Ladder.Length - 1 : BaseRung(_workload, t.OnAc)];
             var cool = Cooling[_thermal];
-            bool boost = r.Boost && cool.KeepBoost;
+            bool lightTrial = !saver && t.OnAc && _workload == Workload.Light && LightBoostAllowed();
+            bool boost = (r.Boost || lightTrial) && cool.KeepBoost;
             int maxState = Math.Min(r.MaxState, cool.MaxState);
             var fan = _fanMax ? FanMode.Max : FanMode.Auto;
 
@@ -81,8 +83,40 @@ namespace Predator
                             (maxState < 100 ? $" · capped {maxState}%" : "") +
                             (_thermal > 0 ? $" · cooling {_thermal}" : "") +
                             (_fanMax ? " · fans max" : "") +
-                            (saver ? " · battery saver" : "");
+                            (saver ? " · battery saver" : "") +
+                            (_workload == Workload.Light && _lightCooldown > 0 ? " · light boost paused (too hot)" : "");
             return new Decision(r.Power, boost, maxState, fan, _workload, _thermal, reason);
+        }
+
+        // Self-tuning boost for light work. With good paste, a few busy threads with boost stay well under
+        // LightBoostMaxTemp and boost is simply kept. With poor paste (this laptop today) they hit 91°C within
+        // seconds, so boost is dropped and retried later with exponential backoff — the app notices a repaste
+        // by itself instead of needing a setting changed.
+        public const int LightBoostMaxTemp = 85;
+        private const int LightBackoffBase = 300;       // 10 min at a 2 s tick
+        private const int LightBackoffMax = 3600;       // 2 h
+        private const int LightProvenTicks = 150;       // 5 min cool with boost resets the backoff
+        private int _lightCooldown;
+        private int _lightBackoff = LightBackoffBase;
+        private int _lightGoodTicks;
+
+        private bool LightBoostAllowed()
+        {
+            if (_lightCooldown > 0) return false;
+            if (_cpuTemp >= LightBoostMaxTemp)
+            {
+                _lightCooldown = _lightBackoff;
+                _lightBackoff = Math.Min(_lightBackoff * 2, LightBackoffMax);
+                _lightGoodTicks = 0;
+                return false;
+            }
+            if (++_lightGoodTicks >= LightProvenTicks) _lightBackoff = LightBackoffBase;
+            return true;
+        }
+
+        private void TickLightCooldown()
+        {
+            if (_lightCooldown > 0) _lightCooldown--;
         }
 
         public static string Label(PowerMode m) => m switch

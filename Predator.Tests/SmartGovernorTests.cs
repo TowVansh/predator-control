@@ -155,11 +155,50 @@ public class SmartGovernorTests
     }
 
     [Fact]
-    public void Light_use_runs_cool_without_boost()
+    public void Light_use_keeps_boost_when_it_stays_cool()
     {
-        var d = Run(new SmartGovernor(), T(70, cpu: 15, gpu: 5), 5);
+        // Good paste: light work with boost stays well under 85°C, so boost is kept.
+        var d = Run(new SmartGovernor(), T(70, cpu: 15, gpu: 5), 200);
         Assert.Equal(Workload.Light, d.Workload);
         Assert.Equal(PowerMode.Balanced, d.Power);
+        Assert.True(d.Boost);
+    }
+
+    [Fact]
+    public void Light_use_drops_boost_when_it_runs_hot_and_backs_off()
+    {
+        // Poor paste: a few threads with boost reach 91°C. Boost goes off and stays off for the backoff.
+        var g = new SmartGovernor();
+        Run(g, T(70, cpu: 15, gpu: 5), 3);
+        var d = Run(g, T(91, cpu: 15, gpu: 5), 8);
+        Assert.False(d.Boost);
+        Assert.Contains("light boost paused", d.Reason);
+
+        d = Run(g, T(70, cpu: 15, gpu: 5), 250);     // < 10 min later: still paused even though it cooled
+        Assert.False(d.Boost);
+
+        d = Run(g, T(70, cpu: 15, gpu: 5), 60);      // past 10 min: tries again
+        Assert.True(d.Boost);
+    }
+
+    [Fact]
+    public void Light_boost_backoff_doubles_on_repeated_failures()
+    {
+        var g = new SmartGovernor();
+        Run(g, T(70, cpu: 15, gpu: 5), 3);
+        Run(g, T(91, cpu: 15, gpu: 5), 8);            // fail #1 -> 300 ticks
+        Run(g, T(70, cpu: 15, gpu: 5), 310);          // retry allowed
+        Run(g, T(91, cpu: 15, gpu: 5), 8);            // fail #2 -> 600 ticks
+        var d = Run(g, T(70, cpu: 15, gpu: 5), 400);
+        Assert.False(d.Boost);                         // still inside the doubled window
+        d = Run(g, T(70, cpu: 15, gpu: 5), 250);
+        Assert.True(d.Boost);
+    }
+
+    [Fact]
+    public void Light_boost_is_not_tried_on_battery()
+    {
+        var d = Run(new SmartGovernor(), T(60, cpu: 15, gpu: 5, ac: false), 10);
         Assert.False(d.Boost);
     }
 

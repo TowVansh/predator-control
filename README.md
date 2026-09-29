@@ -7,7 +7,7 @@ Forked from [supesonly/Acer-P-Helper](https://github.com/supesonly/Acer-P-Helper
 
 - **Smart mode (default).** The app decides the power mode, CPU boost and fans by itself:
   - Idle: Quiet mode with boost off. Idle temperature goes from about 78°C to about 58°C, and the fan from about 5300 to 1800 rpm.
-  - Light use: Balanced mode with boost off. This stands in for an undervolt, which the BIOS locks on this model: a few busy threads run at about 70°C instead of 91°C.
+  - Light use: Balanced mode. Boost self-tunes: Smart tries it, and if the CPU passes 85°C it drops boost and retries later (after 10 min, then 20, doubling up to 2 h). Once boost has stayed cool for 5 minutes, the wait goes back to 10 min. With poor thermal paste, light work therefore runs at about 70°C instead of 91°C; after a repaste, boost unlocks by itself. This stands in for an undervolt, which the BIOS locks on this model.
   - Heavy load (about 8 or more busy threads) or gaming: Turbo with boost. Games are detected from GPU load, fullscreen windows, or your games list.
   - Thermal limit: 93°C, set in `settings.json`. The firmware already parks a boosting CPU at 91°C, so Smart normally just sends the fans to Max at 90°C. If the CPU goes past the limit anyway, it turns boost off, then caps clocks.
   - Battery: never Turbo. Below 20% battery it forces Quiet.
