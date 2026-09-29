@@ -17,10 +17,11 @@ namespace Predator
             new(30, 0), new(60, 15), new(70, 30), new(78, 45), new(84, 65), new(88, 85), new(91, 100), new(100, 100)
         };
 
-        /// <summary>GPU: heats steadily, so ramp earlier; full speed before NVIDIA's 87°C throttle point.</summary>
+        /// <summary>GPU: poor paste here too (90°C at only ~36 W), and GPU heat builds steadily, so ramp early
+        /// and hit full speed well before NVIDIA's 87°C throttle point.</summary>
         public static List<Point> DefaultGpu() => new()
         {
-            new(30, 0), new(55, 15), new(65, 35), new(72, 55), new(78, 75), new(83, 90), new(86, 100), new(100, 100)
+            new(30, 0), new(50, 15), new(60, 40), new(67, 60), new(73, 80), new(78, 95), new(81, 100), new(100, 100)
         };
 
         public static int Interpolate(List<Point> curve, int temp)

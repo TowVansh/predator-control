@@ -242,6 +242,16 @@ public class SmartGovernorTests
     }
 
     [Fact]
+    public void Gpu_fans_go_max_at_80_and_release_below_75()
+    {
+        var g = new SmartGovernor();
+        Run(g, T(60, cpu: 20, gpu: 90, gpuT: 70), 4);
+        Assert.Equal(FanMode.Max, g.Update(T(60, cpu: 20, gpu: 90, gpuT: 80)).Fan);
+        Assert.Equal(FanMode.Max, Run(g, T(60, cpu: 20, gpu: 90, gpuT: 77), 10).Fan);   // still in the band
+        Assert.Equal(FanMode.Auto, Run(g, T(60, cpu: 20, gpu: 90, gpuT: 72), 6).Fan);
+    }
+
+    [Fact]
     public void Curve_interpolates_and_clamps()
     {
         var c = FanCurve.DefaultCpu();
@@ -251,7 +261,7 @@ public class SmartGovernorTests
         Assert.Equal(38, FanCurve.Interpolate(c, 74));    // between 70->30 and 78->45
 
         var g = FanCurve.DefaultGpu();
-        Assert.Equal(100, FanCurve.Interpolate(g, 86));
+        Assert.Equal(100, FanCurve.Interpolate(g, 81));
         Assert.True(FanCurve.Interpolate(g, 80) > FanCurve.Interpolate(c, 80), "GPU curve ramps earlier than CPU");
     }
 }
