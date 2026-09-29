@@ -1,160 +1,45 @@
-# Predator Control
+# Predator Control (PH16-71 fork)
 
-A lightweight, open-source replacement for PredatorSense on Acer Predator laptops. Built with C# and WinForms, it sits in your system tray and gives you direct control over your laptop's performance, fans, display and keyboard RGB — without the bloat.
+A small tray app that runs an Acer Predator Helios 16 (PH16-71, i9-13900HX / RTX 4070) without PredatorSense.
+Forked from [supesonly/Acer-P-Helper](https://github.com/supesonly/Acer-P-Helper) and rewritten from scratch.
 
----
+## What it does
 
-## Features
+- **Smart mode (default).** The app decides the power mode, CPU boost and fans by itself:
+  - Idle: Quiet mode with boost off. Idle temperature goes from about 78°C to about 58°C, and the fan from about 5300 to 1800 rpm.
+  - Light use: Balanced mode with boost.
+  - Heavy load or gaming: Turbo with boost. Games are detected from GPU load, fullscreen windows, or your games list.
+  - Thermal limit: keeps the CPU at 90°C or below. It raises the fans first, then turns CPU boost off, and caps clocks only as a last resort.
+  - Battery: never Turbo. Below 20% battery it forces Quiet.
+  - Every decision is logged to `%LOCALAPPDATA%\PredatorControl\smart.log`.
+- **Manual modes:** Quiet, Balanced, Performance and Turbo, with Auto, Max or a custom fan curve.
+- **Per-key keyboard RGB** over USB, with no Acer software. Effects are Off, Static, Breathing, Wave and Rainbow. Smart lighting turns the keyboard off after 3 idle minutes and dims it on battery.
+- **Games list:** executables that are always treated as games.
+- Tray menu, and start with Windows through a scheduled task, so there's no UAC prompt at logon.
 
--  **Power Modes** — Silent, Balanced, Performance, Turbo, Eco (auto-switches with power state)
--  **Fan Control** — Auto, Max, Custom
--  **Display Refresh Rate** — Toggle between 60 Hz and your panel's max Hz
--  **Keyboard RGB** — 8 lighting modes (Static, Breathing, Neon, Wave, Shifting, Zoom, Meteor, Twinkling) with brightness and speed control
--  **Live CPU/GPU temperatures** in the title bar
--  **System tray** — full control without opening the window
--  **Remembers your settings** across reboots via the registry
--  **Runs on startup** automatically
+Settings live in `%LOCALAPPDATA%\PredatorControl\settings.json`.
 
----
+## Hardware notes (measured on PH16-71)
 
-## Requirements
-
-- Acer Predator laptop (uses Acer's `AcerGamingFunction` WMI interface)
-- Windows 10 or 11
-- **.NET 10 Runtime** — download from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/10.0)
-- Must be run as **Administrator**
-
-> **Note:** This app has only been tested on one specific Predator model. It may or may not work on yours. Check the disclaimer at the bottom.
-
----
-
-## Download
-
-Go to the [Releases](../../releases) page and download the latest `PredatorControlApp.exe`. Right-click → **Run as administrator**.
-
----
-
-## Building from Source
-
-1. Install [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-2. Clone this repo
-3. Open `PredatorControlApp.slnx` in Visual Studio 2022+, or run:
-   ```
-   dotnet build
-   ```
-4. The output is in `PredatorControlApp/bin/Debug/net10.0-windows/`
-
----
-
-## Replacing PredatorSense — Full Setup Guide
-
-This app communicates directly with Acer's WMI driver (which is part of Windows, not PredatorSense), so you can safely disable PredatorSense and all its background services.
-
-### Step 0 — Configure Custom Fans (Do this first!)
-
-Since setting arbitrary custom fan speeds dynamically via WMI is extremely complex and model-dependent, this app commands the driver to switch to the hardware **"Custom"** fan profile, which inherits whatever custom fan speed or curve was last saved on the system.
-
-Before disabling PredatorSense:
-1. Open **PredatorSense**.
-2. Go to **Fan Control** and set your **Custom** fan speeds or curves exactly as you want them.
-3. Apply the settings.
-4. Close PredatorSense. 
-
-Once set, our app's **Custom** fan setting will use this saved curve even after PredatorSense is completely disabled.
-
-### Step 1 — Disable PredatorSense Services
-
-Open **Services** (`Win + R` → type `services.msc` → Enter) and set the following services to **Disabled**:
-
-| Service Name | What it does |
+| Thing | Finding |
 |---|---|
-| `Acer Gaming Service` | PredatorSense background daemon |
-| `Acer Quick Access Service` | Hotkey management (Fn keys) |
-| `AcerService` | Core Acer system service |
-| `Acer Power Button Service` | Hardware button handling |
+| Acer WMI (`root\WMI\AcerGamingFunction`) | Power modes 0/1/4/5, fan Auto/Max/Custom and the sensors all work. Keyboard lighting over WMI does nothing on this model. |
+| Keyboard | Per-key RGB on USB HID `04F2:0117`, interface 3, usage page `FF02`. The protocol is documented in `Predator/Hardware/AcerUsbKeyboard.cs`. |
+| CPU thermals | With boost on, the CPU holds 91°C, the firmware's TCC limit, in every Acer mode. Boost off gives about 75°C at about 25% lower multi-core clocks. Max fans give no extra clocks. |
+| CPU fan custom speed | Ignored by the EC while the CPU is hot. The GPU fan follows it. |
 
-For each service:
-1. Double-click it
-2. Set **Startup type** to `Disabled`
-3. Click **Stop** if it's running
-4. Click **OK**
+## Build
 
-> **Note:** The WMI driver that actually controls hardware (power modes, fans, RGB) is separate from these services and remains active — that's what this app uses.
+```
+dotnet build Predator/Predator.csproj -c Release
+dotnet test Predator.Tests
+dotnet publish Predator/Predator.csproj -c Release -o app
+```
 
-### Step 2 — Disable PredatorSense from Startup
+The app needs admin rights, set in its manifest, and the .NET 8 Desktop Runtime.
 
-1. Press `Ctrl + Shift + Esc` to open Task Manager
-2. Click the **Startup apps** tab
-3. Find **PredatorSense** and any other Acer apps
-4. Right-click → **Disable**
+`tools/` holds the reverse-engineering and test scripts: `rgb_*.py`, `re_dll.py`, `stress.py` and `snap.ps1`. It also holds `optimize.ps1`, the Windows tune-up script, which supports `-Revert`.
 
-### Step 3 — Remove PredatorSense from Startup Registry (optional, thorough)
-
-1. Press `Win + R`, type `regedit`, press Enter
-2. Navigate to:
-   ```
-   HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
-   ```
-3. Delete any entries related to `PredatorSense`, `AcerGaming`, or `Acer`
-4. Also check:
-   ```
-   HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
-   ```
-
-### Step 4 — Make Predator Control Run on Startup Instead
-
-This app registers itself on startup automatically the first time it runs. It launches with the `-hidden` flag so it starts directly in the system tray without showing the window.
-
-To verify it's registered:
-1. Open `regedit`
-2. Navigate to:
-   ```
-   HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
-   ```
-3. You should see a `PredatorControl` entry pointing to the app's `.exe`
-
-If it's not there, just run the app once as Administrator and it will self-register.
-
-### Step 5 — Uninstall PredatorSense (optional)
-
-If you want to fully remove it:
-1. Open **Settings** → **Apps** → **Installed apps**
-2. Search for **PredatorSense**
-3. Click the three dots → **Uninstall**
-
->  Do this **after** confirming Predator Control works correctly for you. Keep PredatorSense installed as a fallback until you're happy.
-
----
-
-## How It Works
-
-The app talks directly to the `AcerGamingFunction` WMI class in the `root\WMI` namespace — the same low-level interface PredatorSense uses under the hood. No Acer background services are required.
-
----
-
-## Disclaimer
-
->  **This app was built with the assistance of AI tools.**
->
-> It has been tested on **one system only** (an Acer Predator (Helios Neo 16) running Windows 11). Compatibility with other Predator models, Windows versions, or hardware configurations is not guaranteed.
->
-> **Use at your own risk. Any issues, damage, or unexpected behavior that occurs as a result of using this app are solely your responsibility.** The author provides no warranty, support, or guarantee of any kind.
->
-> If something breaks — reflash your BIOS, reinstall PredatorSense, or restore from a backup. That's on you.
-
----
-<img width="388" height="380" alt="image" src="https://github.com/user-attachments/assets/5a2d6423-8ab9-4a23-aa51-f14eb2a215d9" />
-<img width="484" height="137" alt="image" src="https://github.com/user-attachments/assets/f02178d9-92e5-4c1d-be54-587b0bff4b95" />
-
----
-##  Strictly Not for Sale
-
-This is a **free, open-source utility** created for the community. 
-* **It is strictly prohibited to sell this software**, bundle it with commercial products, or use it for any commercial sales/marketing.
-* If you paid for this software, you have been scammed. Please report the seller and demand a refund.
-* Unauthorized commercial distribution or sale of this software will lead to immediate take-down requests and legal consequences.
-
----
 ## License
 
-[MIT](LICENSE) — do whatever you want with it.
+MIT, as upstream. Use at your own risk.

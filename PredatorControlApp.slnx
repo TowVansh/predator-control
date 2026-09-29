@@ -1,3 +1,4 @@
 <Solution>
-  <Project Path="PredatorControlApp/PredatorControlApp.csproj" />
+  <Project Path="Predator/Predator.csproj" />
+  <Project Path="Predator.Tests/Predator.Tests.csproj" />
 </Solution>

@@ -22,3 +22,10 @@ publish/
 *.txt
 *.tex
 
+
+# Local install + tune-up backup
+app/
+tools/optimize_backup.json
+!tools/*.ps1
+__pycache__/
+
