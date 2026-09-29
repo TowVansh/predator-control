@@ -244,9 +244,14 @@ public class SmartGovernorTests
     [Fact]
     public void Curve_interpolates_and_clamps()
     {
-        var c = FanCurve.Default();
-        Assert.Equal(10, FanCurve.Interpolate(c, 20));
+        var c = FanCurve.DefaultCpu();
+        Assert.Equal(0, FanCurve.Interpolate(c, 20));
         Assert.Equal(100, FanCurve.Interpolate(c, 99));
-        Assert.Equal(40, FanCurve.Interpolate(c, 60));
+        Assert.Equal(15, FanCurve.Interpolate(c, 60));
+        Assert.Equal(38, FanCurve.Interpolate(c, 74));    // between 70->30 and 78->45
+
+        var g = FanCurve.DefaultGpu();
+        Assert.Equal(100, FanCurve.Interpolate(g, 86));
+        Assert.True(FanCurve.Interpolate(g, 80) > FanCurve.Interpolate(c, 80), "GPU curve ramps earlier than CPU");
     }
 }

@@ -6,9 +6,21 @@ namespace Predator
     // so Custom mode samples temps every tick and pushes the interpolated speed.
     public static class FanCurve
     {
-        public static List<Point> Default() => new()
+        // Measured on the PH16-71 (both fans alike): 0-15% = ~1730 rpm floor (fans never stop), 25% ~1880,
+        // 40% ~2950, 60% ~4270, 80% ~5420, 100% ~6490. So the curves start at the floor and only spend
+        // range where it changes something.
+
+        /// <summary>CPU: idles at 60-65°C with the current paste, so stay at the floor until then;
+        /// full speed at 91°C, where the firmware parks a boosting CPU anyway.</summary>
+        public static List<Point> DefaultCpu() => new()
         {
-            new(30, 10), new(45, 15), new(55, 30), new(65, 50), new(72, 65), new(80, 80), new(88, 92), new(95, 100)
+            new(30, 0), new(60, 15), new(70, 30), new(78, 45), new(84, 65), new(88, 85), new(91, 100), new(100, 100)
+        };
+
+        /// <summary>GPU: heats steadily, so ramp earlier; full speed before NVIDIA's 87°C throttle point.</summary>
+        public static List<Point> DefaultGpu() => new()
+        {
+            new(30, 0), new(55, 15), new(65, 35), new(72, 55), new(78, 75), new(83, 90), new(86, 100), new(100, 100)
         };
 
         public static int Interpolate(List<Point> curve, int temp)

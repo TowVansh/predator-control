@@ -14,8 +14,8 @@ namespace Predator
         public int CpuTempLimit { get; set; } = 93;   // firmware TCC already holds ~91°C with boost
         public PowerMode Power { get; set; } = PowerMode.Balanced;
         public FanMode Fan { get; set; } = FanMode.Auto;
-        public List<Point> CpuCurve { get; set; } = FanCurve.Default();
-        public List<Point> GpuCurve { get; set; } = FanCurve.Default();
+        public List<Point> CpuCurve { get; set; } = FanCurve.DefaultCpu();
+        public List<Point> GpuCurve { get; set; } = FanCurve.DefaultGpu();
 
         public LightEffect Light { get; set; } = LightEffect.Static;
         public int LightR { get; set; } = 0;

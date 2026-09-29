@@ -261,10 +261,26 @@ namespace Predator
             }
             if (fan == FanMode.Custom)
             {
-                var speeds = (FanCurve.Interpolate(Settings.CpuCurve, cpuT), FanCurve.Interpolate(Settings.GpuCurve, gpuT));
-                if (_appliedFanSpeed != speeds && _wmi.SetFanSpeeds(speeds.Item1, speeds.Item2)) _appliedFanSpeed = speeds;
+                // Follow a smoothed temperature, and skip changes under FanStep %, so a one-second CPU spike
+                // doesn't make the fan surge and drop.
+                _curveCpuT = _curveCpuT < 0 ? cpuT : _curveCpuT + CurveAlpha * (cpuT - _curveCpuT);
+                _curveGpuT = _curveGpuT < 0 ? gpuT : _curveGpuT + CurveAlpha * (gpuT - _curveGpuT);
+                int cpu = FanCurve.Interpolate(Settings.CpuCurve, (int)Math.Round(_curveCpuT));
+                int gpu = FanCurve.Interpolate(Settings.GpuCurve, (int)Math.Round(_curveGpuT));
+                if (_appliedFanSpeed is var (oldCpu, oldGpu) &&
+                    Math.Abs(cpu - oldCpu) < FanStep && Math.Abs(gpu - oldGpu) < FanStep && cpu != 100 && gpu != 100)
+                    return;
+                if (_wmi.SetFanSpeeds(cpu, gpu)) _appliedFanSpeed = (cpu, gpu);
+            }
+            else
+            {
+                _curveCpuT = _curveGpuT = -1;
             }
         }
+
+        private const double CurveAlpha = 0.35;
+        private const int FanStep = 4;
+        private double _curveCpuT = -1, _curveGpuT = -1;
 
         private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
         {

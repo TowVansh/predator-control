@@ -31,7 +31,7 @@ namespace Predator
 
             int by = pad * 3 + h * 2, bw = S(110), bh = S(34);
             var reset = new PredatorButton { Text = "Reset", Location = new Point(pad, by), Size = new Size(bw, bh) };
-            reset.Click += (_, _) => { _cpu.Points = FanCurve.Default(); _gpu.Points = FanCurve.Default(); };
+            reset.Click += (_, _) => { _cpu.Points = FanCurve.DefaultCpu(); _gpu.Points = FanCurve.DefaultGpu(); };
             var save = new PredatorButton { Text = "Save", Location = new Point(pad + w - bw, by), Size = new Size(bw, bh), IsActive = true };
             save.Click += (_, _) => { DialogResult = DialogResult.OK; Close(); };
             Controls.Add(reset);
