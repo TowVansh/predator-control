@@ -62,6 +62,22 @@ namespace Predator
             BuildTray();
             RefreshControls();
             _c.StatusChanged += OnStatus;
+
+            _keys = new AcerKeys { PredatorKeyCode = _c.Settings.PredatorKeyCode };
+            _keys.TurboPressed += OnTurboKey;
+            _keys.PredatorPressed += () => { if (Visible) Hide(); else ShowWindow(); };
+        }
+
+        private readonly AcerKeys _keys;
+
+        // Turbo key: Smart -> Turbo -> back to Smart.
+        private void OnTurboKey()
+        {
+            var s = _c.Settings;
+            bool toTurbo = s.Smart || s.Power != PowerMode.Turbo;
+            if (toTurbo) _c.SetManualPower(PowerMode.Turbo); else _c.SetSmart();
+            RefreshControls();
+            _tray.ShowBalloonTip(1500, "Predator Control", toTurbo ? "Turbo" : "Smart", ToolTipIcon.None);
         }
 
         private int S(int px) => (int)Math.Round(px * _scale);
@@ -232,6 +248,14 @@ namespace Predator
             string tip = $"CPU {st.CpuTemp}°C · GPU {st.GpuTemp}°C\n{SmartGovernor.Label(st.Power)}";
             _tray.Text = tip.Length > 63 ? tip[..63] : tip;
 
+            if (st.CpuTemp != _trayTemp)
+            {
+                _trayTemp = st.CpuTemp;
+                var old = _tray.Icon;
+                _tray.Icon = TrayIcon.Render(st.CpuTemp, _c.Settings.CpuTempLimit - 3, SystemInformation.SmallIconSize.Width);
+                if (old != null && old != Icon) old.Dispose();
+            }
+
             // Clock capping means boost-off alone couldn't hold the limit: usually dust, a blocked vent,
             // or a soft surface. Worth telling the user, but at most every 30 minutes.
             if (st.MaxState < 100 && DateTime.Now - _lastHeatWarning > TimeSpan.FromMinutes(30))
@@ -244,6 +268,7 @@ namespace Predator
         }
 
         private DateTime _lastHeatWarning = DateTime.MinValue;
+        private int _trayTemp = -1;
 
         #endregion
 
@@ -376,6 +401,7 @@ namespace Predator
                 return;
             }
             _c.StatusChanged -= OnStatus;
+            _keys.Dispose();
             _tray.Visible = false;
             _tray.Dispose();
             base.OnFormClosing(e);

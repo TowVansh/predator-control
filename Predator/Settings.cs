@@ -22,6 +22,9 @@ namespace Predator
         public int LightG { get; set; } = 150;
         public int LightB { get; set; } = 255;
         public int LightBrightness { get; set; } = 100;   // 0..100
+        /// <summary>Hotkey number the PredatorSense key sends (see keys.log); opens the window.</summary>
+        public int? PredatorKeyCode { get; set; }
+
         /// <summary>Lights off after a few idle minutes, dimmer on battery.</summary>
         public bool SmartLighting { get; set; } = true;
 
