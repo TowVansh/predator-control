@@ -68,6 +68,7 @@ namespace Predator
             Smooth(t);
             UpdateWorkload(Classify(t));
             UpdateThermal(t);
+            UpdateGpuThermal();
             TickLightCooldown();
 
             // Low battery: stretch what's left, whatever the workload.
@@ -78,14 +79,43 @@ namespace Predator
             bool boost = (r.Boost || lightTrial) && cool.KeepBoost;
             int maxState = Math.Min(r.MaxState, cool.MaxState);
             var fan = _fanMax ? FanMode.Max : FanMode.Auto;
+            var power = StepDown(r.Power, _gpuThermal);
 
-            string reason = $"{_workload} · {Label(r.Power)}{(boost ? " + boost" : "")}" +
+            string reason = $"{_workload} · {Label(power)}{(boost ? " + boost" : "")}" +
                             (maxState < 100 ? $" · capped {maxState}%" : "") +
                             (_thermal > 0 ? $" · cooling {_thermal}" : "") +
+                            (_gpuThermal > 0 ? $" · GPU cooling {_gpuThermal}" : "") +
                             (_fanMax ? " · fans max" : "") +
                             (saver ? " · battery saver" : "") +
                             (_workload == Workload.Light && _lightCooldown > 0 ? " · light boost paused (too hot)" : "");
-            return new Decision(r.Power, boost, maxState, fan, _workload, _thermal, reason);
+            return new Decision(power, boost, maxState, fan, _workload, _thermal, reason);
+        }
+
+        // GPU heat is handled with the Acer mode, which is what sets GPU power (and Turbo's GPU overclock).
+        // Cutting CPU boost or clocks for a hot GPU just costs frames without cooling the GPU.
+        private static readonly PowerMode[] GpuSteps = { PowerMode.Turbo, PowerMode.Performance, PowerMode.Balanced };
+        private const int GpuHotTicks = 4, GpuCoolTicks = 10;
+        private double _gpuTemp;
+        private int _gpuThermal, _gpuHot, _gpuCool;
+
+        private static PowerMode StepDown(PowerMode mode, int steps)
+        {
+            int i = Array.IndexOf(GpuSteps, mode);
+            return i < 0 || steps == 0 ? mode : GpuSteps[Math.Min(i + steps, GpuSteps.Length - 1)];
+        }
+
+        private void UpdateGpuThermal()
+        {
+            if (_gpuTemp >= GpuTempLimit)
+            {
+                _gpuCool = 0;
+                if (++_gpuHot >= GpuHotTicks && _gpuThermal < GpuSteps.Length - 1) { _gpuThermal++; _gpuHot = 0; }
+            }
+            else
+            {
+                _gpuHot = 0;
+                if (_gpuThermal > 0 && _gpuTemp < GpuTempLimit - 7 && ++_gpuCool >= GpuCoolTicks) { _gpuThermal--; _gpuCool = 0; }
+            }
         }
 
         // Self-tuning boost for light work. With good paste, a few busy threads with boost stay well under
@@ -130,11 +160,12 @@ namespace Predator
 
         private void Smooth(Telemetry t)
         {
-            if (!_seeded) { _cpuLoad = t.CpuLoad; _gpuLoad = t.GpuLoad; _cpuTemp = t.CpuTemp; _seeded = true; return; }
+            if (!_seeded) { _cpuLoad = t.CpuLoad; _gpuLoad = t.GpuLoad; _cpuTemp = t.CpuTemp; _gpuTemp = t.GpuTemp; _seeded = true; return; }
             const double a = 0.35;
             _cpuLoad += a * (t.CpuLoad - _cpuLoad);
             _gpuLoad += a * (t.GpuLoad - _gpuLoad);
             _cpuTemp += TempAlpha * (t.CpuTemp - _cpuTemp);
+            _gpuTemp += TempAlpha * (t.GpuTemp - _gpuTemp);
         }
 
         private Workload Classify(Telemetry t)
@@ -158,7 +189,7 @@ namespace Predator
         private void UpdateThermal(Telemetry t)
         {
             int limit = CpuTempLimit;
-            bool hot = _cpuTemp >= limit || t.GpuTemp >= GpuTempLimit + 3;
+            bool hot = _cpuTemp >= limit;   // CPU only; the GPU has its own step-down (UpdateGpuThermal)
 
             // Fans first: raw temp near the limit sends them to Max at once; release only once clearly below it.
             if (t.CpuTemp >= limit - 3 || t.GpuTemp >= GpuTempLimit) { _fanMax = true; _fanCoolTicks = 0; }

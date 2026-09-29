@@ -222,6 +222,26 @@ public class SmartGovernorTests
     }
 
     [Fact]
+    public void Hot_gpu_steps_down_the_acer_mode_and_leaves_the_cpu_alone()
+    {
+        // Seen live: Rocket League + a local LLM on the GPU -> GPU 91°C while the CPU sat at 65°C.
+        var g = new SmartGovernor();
+        Run(g, T(65, cpu: 30, gpu: 95, gpuT: 75), 4);
+        var d = Run(g, T(65, cpu: 30, gpu: 95, gpuT: 91), 8);
+        Assert.Equal(PowerMode.Performance, d.Power);
+        Assert.True(d.Boost);
+        Assert.Equal(100, d.MaxState);
+        Assert.Equal(0, d.ThermalLevel);
+        Assert.Equal(FanMode.Max, d.Fan);
+
+        d = Run(g, T(65, cpu: 30, gpu: 95, gpuT: 91), 6);
+        Assert.Equal(PowerMode.Balanced, d.Power);
+
+        d = Run(g, T(65, cpu: 30, gpu: 95, gpuT: 72), 30);   // cooled: back up to Turbo
+        Assert.Equal(PowerMode.Turbo, d.Power);
+    }
+
+    [Fact]
     public void Curve_interpolates_and_clamps()
     {
         var c = FanCurve.Default();
