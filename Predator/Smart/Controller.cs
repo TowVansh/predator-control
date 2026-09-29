@@ -177,6 +177,7 @@ namespace Predator
         {
             try
             {
+                HandleResume();
                 int cpuT = _wmi.CpuTemp, gpuT = _wmi.GpuTemp;
                 var (cpuLoad, gpuLoad) = _load.Sample();
                 var ps = SystemInformation.PowerStatus;
@@ -267,7 +268,16 @@ namespace Predator
 
         private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
         {
-            if (e.Mode != PowerModes.Resume) return;
+            // Raised on a SystemEvents thread: only flag it; the next UI-thread tick does the work.
+            if (e.Mode == PowerModes.Resume) _resumePending = true;
+        }
+
+        private volatile bool _resumePending;
+
+        private void HandleResume()
+        {
+            if (!_resumePending) return;
+            _resumePending = false;
             // The EC and keyboard controller forget state across sleep: force a full re-apply.
             _appliedPower = null; _appliedFan = null; _appliedBoost = null; _appliedMaxState = null; _appliedFanSpeed = null;
             ApplyLighting();

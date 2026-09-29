@@ -56,11 +56,17 @@ namespace Predator
 
         public bool IsOpen => _handle is { IsInvalid: false, IsClosed: false };
 
+        // After a failure, don't rescan USB on every frame (effects run at 30 fps).
+        private long _nextOpenAttempt;
+        private const int ReopenDelayMs = 5000;
+
         public bool Open()
         {
             lock (_lock)
             {
                 if (IsOpen) return true;
+                if (Environment.TickCount64 < _nextOpenAttempt) return false;
+                _nextOpenAttempt = Environment.TickCount64 + ReopenDelayMs;
                 string? path = FindDevicePath();
                 if (path == null) return false;
 
@@ -81,6 +87,7 @@ namespace Predator
                     finally { HidD_FreePreparsedData(pp); }
                 }
                 _handle = h;
+                _nextOpenAttempt = 0;
                 return true;
             }
         }
