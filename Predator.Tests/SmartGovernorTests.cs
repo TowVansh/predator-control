@@ -258,7 +258,8 @@ public class SmartGovernorTests
         Assert.Equal(0, FanCurve.Interpolate(c, 20));
         Assert.Equal(100, FanCurve.Interpolate(c, 99));
         Assert.Equal(15, FanCurve.Interpolate(c, 60));
-        Assert.Equal(38, FanCurve.Interpolate(c, 74));    // between 70->30 and 78->45
+        Assert.Equal(50, FanCurve.Interpolate(c, 74));
+        Assert.Equal(100, FanCurve.Interpolate(c, 85));   // full speed from 85°C
 
         var g = FanCurve.DefaultGpu();
         Assert.Equal(100, FanCurve.Interpolate(g, 81));

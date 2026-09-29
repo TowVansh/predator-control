@@ -44,6 +44,7 @@ namespace Predator
         public const int LowBatteryPercent = 20;
         public const int GpuTempLimit = 87;        // NVIDIA's own laptop target; above it the GPU throttles anyway
         public const int GpuFanMaxTemp = 80;       // poor GPU paste: full airflow well before the throttle zone
+        public const int CpuFanMaxTemp = 85;       // full airflow from 85°C, well under the 100°C rating
         private const int TicksToUpgrade = 2;      // workload rises quickly (~4 s at a 2 s tick)
         private const int TicksToDowngrade = 8;    // and falls slowly (~16 s) so it doesn't flap between frames
         private const int HotTicksToThrottle = 4;   // smoothed temp at the limit ~8 s after the last step
@@ -193,8 +194,8 @@ namespace Predator
             bool hot = _cpuTemp >= limit;   // CPU only; the GPU has its own step-down (UpdateGpuThermal)
 
             // Fans first: raw temp near the limit sends them to Max at once; release only once clearly below it.
-            if (t.CpuTemp >= limit - 3 || t.GpuTemp >= GpuFanMaxTemp) { _fanMax = true; _fanCoolTicks = 0; }
-            else if (_fanMax && t.CpuTemp < limit - 8 && t.GpuTemp < GpuFanMaxTemp - 5 && ++_fanCoolTicks >= FanReleaseTicks)
+            if (t.CpuTemp >= CpuFanMaxTemp || t.GpuTemp >= GpuFanMaxTemp) { _fanMax = true; _fanCoolTicks = 0; }
+            else if (_fanMax && t.CpuTemp < CpuFanMaxTemp - 5 && t.GpuTemp < GpuFanMaxTemp - 5 && ++_fanCoolTicks >= FanReleaseTicks)
                 _fanMax = false;
 
             _emergencyTicks = t.CpuTemp >= limit + 5 ? _emergencyTicks + 1 : 0;

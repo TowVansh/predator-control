@@ -11,10 +11,10 @@ namespace Predator
         // range where it changes something.
 
         /// <summary>CPU: idles at 60-65°C with the current paste, so stay at the floor until then;
-        /// full speed at 91°C, where the firmware parks a boosting CPU anyway.</summary>
+        /// full speed from 85°C (the chip is rated to 100°C, but cooler is kinder long-term).</summary>
         public static List<Point> DefaultCpu() => new()
         {
-            new(30, 0), new(60, 15), new(70, 30), new(78, 45), new(84, 65), new(88, 85), new(91, 100), new(100, 100)
+            new(30, 0), new(60, 15), new(68, 30), new(74, 50), new(79, 70), new(83, 90), new(85, 100), new(100, 100)
         };
 
         /// <summary>GPU: poor paste here too (90°C at only ~36 W), and GPU heat builds steadily, so ramp early
