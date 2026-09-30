@@ -38,7 +38,7 @@ namespace Predator
         private PredatorButton _btnColor = null!;
         private PredatorSlider _brightness = null!;
         private ListBox _games = null!;
-        private PredatorSwitch _startup = null!;
+        private PredatorSwitch _startup = null!, _battery = null!;
 
         private readonly NotifyIcon _tray = new();
         private readonly ContextMenuStrip _trayMenu = new();
@@ -183,6 +183,17 @@ namespace Predator
             var remove = AddButton("Remove", pad + inner - S(104), y + btnH + S(8), S(104), btnH);
             remove.Click += (_, _) => RemoveGame();
             y += S(78) + S(20);
+
+            // Battery health
+            AddLabel("Stop charging at 80% (battery health)", pad, y + S(5), FontBody, Color.Gainsboro);
+            _battery = new PredatorSwitch { Location = new Point(pad + inner - S(48), y), Size = new Size(S(48), S(30)), Checked = _c.Settings.BatteryLimit80 };
+            Controls.Add(_battery);
+            _battery.CheckedChanged += (_, _) =>
+            {
+                if (_battery.Checked == _c.Settings.BatteryLimit80) return;
+                if (!_c.SetBatteryLimit(_battery.Checked)) _battery.Checked = !_battery.Checked;
+            };
+            y += S(30) + S(10);
 
             // Startup
             var lbl = AddLabel("Start with Windows", pad, y + S(5), FontBody, Color.Gainsboro);

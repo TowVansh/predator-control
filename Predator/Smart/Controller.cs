@@ -50,6 +50,7 @@ namespace Predator
 
         public void Start()
         {
+            EnforceBatteryLimit(Settings.BatteryLimit80);
             ApplyLighting();
             Tick();
             _timer.Start();
@@ -96,6 +97,20 @@ namespace Predator
             Settings.LightBrightness = brightness;
             Settings.Save();
             ApplyLighting();
+        }
+
+        public bool SetBatteryLimit(bool on)
+        {
+            if (!BatteryHealth.SetLimit(on)) return false;
+            Settings.BatteryLimit80 = on;
+            Settings.Save();
+            return true;
+        }
+
+        // The EC may lose the setting (BIOS reset, drained battery); re-assert it at start and after sleep.
+        private static void EnforceBatteryLimit(bool want)
+        {
+            if (BatteryHealth.IsLimitOn() is bool on && on != want) BatteryHealth.SetLimit(want);
         }
 
         public void SetSmartLighting(bool on)
@@ -297,6 +312,7 @@ namespace Predator
             // The EC and keyboard controller forget state across sleep: force a full re-apply.
             _appliedPower = null; _appliedFan = null; _appliedBoost = null; _appliedMaxState = null; _appliedFanSpeed = null;
             ApplyLighting();
+            EnforceBatteryLimit(Settings.BatteryLimit80);
         }
 
         // Keep the Windows power-mode slider in step with the Acer profile.

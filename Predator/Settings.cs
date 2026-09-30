@@ -22,6 +22,9 @@ namespace Predator
         public int LightG { get; set; } = 150;
         public int LightB { get; set; } = 255;
         public int LightBrightness { get; set; } = 100;   // 0..100
+        /// <summary>Stop charging at 80% (Acer battery health mode). This battery was at 70% health after 108 cycles.</summary>
+        public bool BatteryLimit80 { get; set; } = true;
+
         /// <summary>Hotkey number the PredatorSense key sends (see keys.log); opens the window.</summary>
         public int? PredatorKeyCode { get; set; }
 
